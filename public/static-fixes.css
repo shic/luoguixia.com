@@ -1,0 +1,25 @@
+#gtx-trans,
+.gtx-trans-icon {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.fusion-column-has-bg-image,
+.fusion-column-has-bg-image.fusion-layout-column,
+.fusion-column-has-bg-image .fusion-column-wrapper {
+  background-image: var(--awb-bg-image) !important;
+  background-position: var(--awb-bg-position, center center) !important;
+  background-repeat: no-repeat !important;
+  background-size: var(--awb-bg-size, cover) !important;
+}
+
+body.page-id-13 .fusion-builder-row-2 .fusion-column-has-bg-image {
+  overflow: hidden;
+}
+
+body.page-id-13 .fusion-builder-row-2 .fusion-column-inner-bg-wrapper {
+  --awb-inner-bg-color: rgba(255, 255, 255, 0.78) !important;
+  --awb-inner-bg-color-hover: rgba(255, 255, 255, 0.62) !important;
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}

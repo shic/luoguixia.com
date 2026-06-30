@@ -66,6 +66,7 @@ ASSET_EXTENSIONS = {
 SKIP_PATH_PREFIXES = (
     "/wp-admin/",
     "/wp-json/",
+    "/wp-content/plugins/jetpack/jetpack_vendor/automattic/woocommerce-analytics/",
     "/wp-content/uploads/wc-logs/",
     "/wp-content/uploads/woocommerce_transient_files/",
     "/wp-content/uploads/woocommerce_uploads/",
@@ -203,6 +204,16 @@ def parse_srcset(value: str, base_url: str) -> set[str]:
 
 
 CSS_URL_RE = re.compile(r"url\(\s*(['\"]?)(.*?)\1\s*\)", re.IGNORECASE)
+GTX_TRANS_RE = re.compile(
+    r"\s*<div\s+id=(['\"])gtx-trans\1[^>]*>\s*"
+    r"<div\s+class=(['\"])gtx-trans-icon\2>\s*</div>\s*</div>",
+    re.IGNORECASE,
+)
+TRACKING_SCRIPT_RE = re.compile(
+    r"\s*<script\b[^>]*\bsrc=(['\"])[^'\"]*woocommerce-analytics-client\.js[^'\"]*\1"
+    r"[^>]*>\s*</script>",
+    re.IGNORECASE,
+)
 
 
 def collect_css_urls(css_text: str, base_url: str) -> set[str]:
@@ -303,8 +314,32 @@ def strip_srcset_attrs(text: str) -> str:
     return text
 
 
+def remove_translation_artifacts(text: str) -> str:
+    return GTX_TRANS_RE.sub("", text)
+
+
+def remove_dynamic_tracking_scripts(text: str) -> str:
+    return TRACKING_SCRIPT_RE.sub("", text)
+
+
+def inject_static_fixes(text: str) -> str:
+    if "/static-fixes.css" not in text and "</head>" in text:
+        text = text.replace(
+            "</head>",
+            '<link rel="stylesheet" href="/static-fixes.css"></head>',
+            1,
+        )
+    return text
+
+
 def sanitize_html(text: str) -> str:
-    text = strip_srcset_attrs(rewrite_same_domain_refs(text))
+    text = inject_static_fixes(
+        remove_dynamic_tracking_scripts(
+            remove_translation_artifacts(
+                strip_srcset_attrs(rewrite_same_domain_refs(text))
+            )
+        )
+    )
     if "fusion-form" in text and "static-form-mailto.js" not in text:
         text = text.replace(
             "</body>",
@@ -415,6 +450,35 @@ Disallow:
 Sitemap: https://{CANONICAL_HOST}/sitemap.xml
 """,
     )
+    write_text(
+        PUBLIC_DIR / "static-fixes.css",
+        """#gtx-trans,
+.gtx-trans-icon {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.fusion-column-has-bg-image,
+.fusion-column-has-bg-image.fusion-layout-column,
+.fusion-column-has-bg-image .fusion-column-wrapper {
+  background-image: var(--awb-bg-image) !important;
+  background-position: var(--awb-bg-position, center center) !important;
+  background-repeat: no-repeat !important;
+  background-size: var(--awb-bg-size, cover) !important;
+}
+
+body.page-id-13 .fusion-builder-row-2 .fusion-column-has-bg-image {
+  overflow: hidden;
+}
+
+body.page-id-13 .fusion-builder-row-2 .fusion-column-inner-bg-wrapper {
+  --awb-inner-bg-color: rgba(255, 255, 255, 0.78) !important;
+  --awb-inner-bg-color-hover: rgba(255, 255, 255, 0.62) !important;
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+""",
+    )
 
     sitemap_urls = "\n".join(
         f"  <url><loc>{url}</loc></url>" for url in sorted(pages)
@@ -434,6 +498,7 @@ Sitemap: https://{CANONICAL_HOST}/sitemap.xml
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static-fixes.css">
     <title>Pagina non trovata - Luo Guixia</title>
   </head>
   <body>

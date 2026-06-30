@@ -28,6 +28,7 @@ REQUIRED_FILES = [
     "index.html",
     "robots.txt",
     "sitemap.xml",
+    "static-fixes.css",
     "static-form-mailto.js",
 ]
 
@@ -67,20 +68,40 @@ def check_large_files() -> None:
 def check_html_rewrites() -> None:
     srcset_matches: list[str] = []
     absolute_matches: list[str] = []
+    translation_matches: list[str] = []
+    dynamic_tracking_matches: list[str] = []
+    missing_static_fixes: list[str] = []
 
     for path in PUBLIC_DIR.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in {".html", ".css"}:
             continue
         body = path.read_bytes()
-        if path.suffix.lower() == ".html" and (
-            b"srcset=" in body or b"data-srcset=" in body
-        ):
-            srcset_matches.append(str(path.relative_to(PUBLIC_DIR)))
+        if path.suffix.lower() == ".html":
+            if b"srcset=" in body or b"data-srcset=" in body:
+                srcset_matches.append(str(path.relative_to(PUBLIC_DIR)))
+            if b"gtx-trans" in body:
+                translation_matches.append(str(path.relative_to(PUBLIC_DIR)))
+            if b"woocommerce-analytics-client.js" in body:
+                dynamic_tracking_matches.append(str(path.relative_to(PUBLIC_DIR)))
+            if b"/static-fixes.css" not in body:
+                missing_static_fixes.append(str(path.relative_to(PUBLIC_DIR)))
         if CANONICAL_HOST_PATTERN.search(body):
             absolute_matches.append(str(path.relative_to(PUBLIC_DIR)))
 
     if srcset_matches:
         fail("srcset/data-srcset still present: " + ", ".join(srcset_matches[:10]))
+    if translation_matches:
+        fail(
+            "Google Translate artifacts still present: "
+            + ", ".join(translation_matches[:10])
+        )
+    if dynamic_tracking_matches:
+        fail(
+            "dynamic WooCommerce analytics script still present: "
+            + ", ".join(dynamic_tracking_matches[:10])
+        )
+    if missing_static_fixes:
+        fail("static-fixes.css not linked: " + ", ".join(missing_static_fixes[:10]))
     if absolute_matches:
         fail(
             "same-domain absolute URLs still present: "
