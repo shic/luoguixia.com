@@ -468,6 +468,45 @@ Sitemap: https://{CANONICAL_HOST}/sitemap.xml
   background-size: var(--awb-bg-size, cover) !important;
 }
 
+.fusion-header .fusion-logo {
+  margin-top: 14px !important;
+  margin-bottom: 14px !important;
+}
+
+.fusion-header .fusion-logo img.fusion-standard-logo,
+.fusion-header .fusion-logo img.fusion-sticky-logo {
+  max-height: 64px !important;
+  width: auto;
+}
+
+.fusion-header .fusion-logo img.fusion-mobile-logo {
+  max-height: 40px !important;
+  width: auto;
+}
+
+@media (max-width: 800px) {
+  .fusion-header .fusion-logo {
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  body.no-tablet-sticky-header .fusion-header-wrapper,
+  body.no-mobile-sticky-header .fusion-header-wrapper {
+    position: sticky !important;
+    top: 0;
+    z-index: 10011;
+  }
+
+  body.no-tablet-sticky-header .fusion-header,
+  body.no-mobile-sticky-header .fusion-header {
+    position: relative !important;
+    top: 0 !important;
+    z-index: 10012;
+  }
+}
+
 body.page-id-13 .fusion-builder-row-2 .fusion-column-has-bg-image {
   overflow: hidden;
 }
