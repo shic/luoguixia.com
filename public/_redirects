@@ -1,0 +1,12 @@
+/wp-admin/* /
+/wp-login.php /
+/xmlrpc.php /404.html 404
+/wp-json/* /404.html 404
+/feed/ /sitemap.xml 301
+/comments/feed/ /sitemap.xml 301
+/shop/checkout/ /shop/ 302
+/shop/checkout/* /shop/ 302
+/shop/my-account/ /shop/ 302
+/shop/my-account/* /shop/ 302
+/shop/shopping-cart/ /shop/ 302
+/shop/shopping-cart/* /shop/ 302
