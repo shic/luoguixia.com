@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the generated static export before deploying to Pages."""
+"""Validate the static site before deploying to Pages."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_DIR = ROOT / "public"
+SITE_DIR = ROOT
 MAX_FILE_BYTES = 24 * 1024 * 1024
 CANONICAL_HOST_PATTERN = re.compile(
     rb"https?://(www\.)?luoguixia\.com|//(www\.)?luoguixia\.com"
@@ -43,6 +43,23 @@ KEY_PATHS = [
     "/wp-content/uploads/2021/02/logo-100-200.png",
 ]
 
+SKIP_DIRS = {
+    ".git",
+    ".playwright-cli",
+    "__pycache__",
+    "output",
+    "public",
+    "scripts",
+}
+
+
+def iter_site_files():
+    for path in SITE_DIR.rglob("*"):
+        if any(part in SKIP_DIRS for part in path.relative_to(SITE_DIR).parts):
+            continue
+        if path.is_file():
+            yield path
+
 
 def fail(message: str) -> None:
     print(f"FAIL: {message}")
@@ -50,16 +67,16 @@ def fail(message: str) -> None:
 
 
 def check_required_files() -> None:
-    missing = [name for name in REQUIRED_FILES if not (PUBLIC_DIR / name).exists()]
+    missing = [name for name in REQUIRED_FILES if not (SITE_DIR / name).exists()]
     if missing:
         fail(f"missing required files: {', '.join(missing)}")
 
 
 def check_large_files() -> None:
     large = [
-        path.relative_to(PUBLIC_DIR)
-        for path in PUBLIC_DIR.rglob("*")
-        if path.is_file() and path.stat().st_size > MAX_FILE_BYTES
+        path.relative_to(SITE_DIR)
+        for path in iter_site_files()
+        if path.stat().st_size > MAX_FILE_BYTES
     ]
     if large:
         fail("files exceed 24 MiB Pages limit: " + ", ".join(map(str, large)))
@@ -72,21 +89,21 @@ def check_html_rewrites() -> None:
     dynamic_tracking_matches: list[str] = []
     missing_static_fixes: list[str] = []
 
-    for path in PUBLIC_DIR.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in {".html", ".css"}:
+    for path in iter_site_files():
+        if path.suffix.lower() not in {".html", ".css"}:
             continue
         body = path.read_bytes()
         if path.suffix.lower() == ".html":
             if b"srcset=" in body or b"data-srcset=" in body:
-                srcset_matches.append(str(path.relative_to(PUBLIC_DIR)))
+                srcset_matches.append(str(path.relative_to(SITE_DIR)))
             if b"gtx-trans" in body:
-                translation_matches.append(str(path.relative_to(PUBLIC_DIR)))
+                translation_matches.append(str(path.relative_to(SITE_DIR)))
             if b"woocommerce-analytics-client.js" in body:
-                dynamic_tracking_matches.append(str(path.relative_to(PUBLIC_DIR)))
+                dynamic_tracking_matches.append(str(path.relative_to(SITE_DIR)))
             if b"/static-fixes.css" not in body:
-                missing_static_fixes.append(str(path.relative_to(PUBLIC_DIR)))
+                missing_static_fixes.append(str(path.relative_to(SITE_DIR)))
         if CANONICAL_HOST_PATTERN.search(body):
-            absolute_matches.append(str(path.relative_to(PUBLIC_DIR)))
+            absolute_matches.append(str(path.relative_to(SITE_DIR)))
 
     if srcset_matches:
         fail("srcset/data-srcset still present: " + ", ".join(srcset_matches[:10]))
@@ -110,7 +127,7 @@ def check_html_rewrites() -> None:
 
 
 def check_sitemap() -> None:
-    sitemap = PUBLIC_DIR / "sitemap.xml"
+    sitemap = SITE_DIR / "sitemap.xml"
     root = ET.parse(sitemap).getroot()
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     urls = root.findall("sm:url", ns)
@@ -119,8 +136,8 @@ def check_sitemap() -> None:
 
 
 def check_contact_fallback() -> None:
-    contact = (PUBLIC_DIR / "contact" / "index.html").read_text(errors="ignore")
-    script = (PUBLIC_DIR / "static-form-mailto.js").read_text(errors="ignore")
+    contact = (SITE_DIR / "contact" / "index.html").read_text(errors="ignore")
+    script = (SITE_DIR / "static-form-mailto.js").read_text(errors="ignore")
     if "/static-form-mailto.js" not in contact:
         fail("contact page does not include static-form-mailto.js")
     if "luoguixia@gmail.com" not in script:
